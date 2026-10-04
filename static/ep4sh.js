@@ -1,1 +1,1 @@
-../templates/ep4sh.js
+//

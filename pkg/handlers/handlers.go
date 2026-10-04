@@ -22,7 +22,7 @@ func Index(app *app.Application) http.HandlerFunc {
 			return
 		}
 
-		err = tpl.Execute(w, "base.html")
+		err = tpl.Execute(w, nil)
 		if err != nil {
 			log.Printf("error executing template files: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -32,9 +32,11 @@ func Index(app *app.Application) http.HandlerFunc {
 }
 
 func Static(app *app.Application) http.HandlerFunc {
+	fs := http.FileServer(http.Dir("static"))
+	fileHandler := http.StripPrefix("/static/", fs)
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		fs := http.FileServer(http.Dir("static"))
-		http.StripPrefix("/static/", fs).ServeHTTP(w, r)
+		fileHandler.ServeHTTP(w, r)
 	}
 }
 
@@ -59,12 +61,14 @@ func LoggingMiddleware(app *app.Application, next http.Handler) http.Handler {
 		func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 
-			app.Sugar.Infow("Request processed",
+			app.Sugar.Infow(
+				"Request processed",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"duration", time.Since(start),
 			)
-		})
+		},
+	)
 }
 
 // SecurityHeadersMiddleware wraps every request with security headers.
@@ -77,5 +81,6 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Feature-Policy", "self")
 			w.Header().Set("X-Frame-Options", "DENY")
 			next.ServeHTTP(w, r)
-		})
+		},
+	)
 }
